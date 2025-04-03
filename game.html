@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Game</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; }
+        .grid-container { display: grid; grid-template-columns: repeat(4, 100px); grid-template-rows: repeat(4, 100px); gap: 10px; margin: 20px auto; width: 440px; }
+        .tile { 
+            width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; 
+            font-size: 24px; font-weight: bold; border-radius: 5px; 
+            background: #ccc; transition: all 0.2s ease-in-out; cursor: pointer;
+        }
+        .tile[data-value="2"] { background: #eee4da; color: #776e65; }
+        .tile[data-value="4"] { background: #ede0c8; color: #776e65; }
+        .tile[data-value="8"] { background: #f2b179; color: #fff; }
+        .tile[data-value="16"] { background: #f59563; color: #fff; }
+        .tile[data-value="32"] { background: #f67c5f; color: #fff; }
+        .tile[data-value="64"] { background: #f65e3b; color: #fff; }
+        .tile[data-value="128"] { background: #edcf72; color: #fff; }
+        .tile[data-value="256"] { background: #edcc61; color: #fff; }
+        .tile[data-value="512"] { background: #edc850; color: #fff; }
+        .tile[data-value="1024"] { background: #edc53f; color: #fff; }
+        .tile[data-value="2048"] { background: #edc22e; color: #fff; }
+        .new-tile { animation: pop 0.3s ease-in-out; }
+        @keyframes pop { from { transform: scale(0.8); opacity: 0.5; } to { transform: scale(1); opacity: 1; } }
+        #timer, #score { font-size: 24px; margin: 10px; color: red; }
+        #message { font-size: 28px; font-weight: bold; color: green; }
+        .highlighted {
+            border: 2px solid #ffcc00;
+            background: #ffeb3b;
+        }
+    </style>
+</head>
+<body>
+    <h1>2048 Game</h1>
+    <div id="timer">Time Left: 60s</div>
+    <div id="score">Score: 0</div>
+    <div id="message"></div>
+    <div class="grid-container" id="grid"></div>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const gridContainer = document.getElementById("grid");
+            const timerDisplay = document.getElementById("timer");
+            const scoreDisplay = document.getElementById("score");
+            const messageDisplay = document.getElementById("message");
+
+            let grid = Array(4).fill().map(() => Array(4).fill(0));
+            let timeLeft = 60;
+            let score = 0;
+            let selectedTile = null; 
+
+            function updateTimer() {
+                timeLeft--;
+                timerDisplay.textContent = `Time Left: ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    gameOver("TIME'S UP!");
+                }
+            }
+
+            let gameTimer = setInterval(updateTimer, 1000);
+
+            function updateScore(points) {
+                score += points;
+                scoreDisplay.textContent = `Score: ${score}`;
+                
+                if (score > 1500) {
+                    messageDisplay.textContent = "Well Done!";
+                } else if (score > 500) {
+                    messageDisplay.textContent = "Not Bad!";
+                } else if (score > 100) {
+                    messageDisplay.textContent = "Good!";
+                } else {
+                    messageDisplay.textContent = "";
+                }
+            }
+
+            function drawGrid() {
+                gridContainer.innerHTML = "";
+                grid.forEach((row, rIdx) => {
+                    row.forEach((value, cIdx) => {
+                        const tile = document.createElement("div");
+                        tile.className = "tile";
+                        tile.dataset.row = rIdx;
+                        tile.dataset.col = cIdx;
+                        if (value) {
+                            tile.textContent = value;
+                            tile.setAttribute("data-value", value);
+                            tile.classList.add("new-tile");
+                        }
+                        gridContainer.appendChild(tile);
+                        tile.addEventListener("click", () => onTileClick(rIdx, cIdx, tile));
+                    });
+                });
+            }
+
+            function addRandomTile() {
+                let emptyTiles = [];
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        if (grid[r][c] === 0) emptyTiles.push([r, c]);
+                    }
+                }
+                if (emptyTiles.length > 0) {
+                    let [r, c] = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+                    grid[r][c] = Math.random() > 0.9 ? 4 : 2;
+                }
+            }
+
+            function onTileClick(rIdx, cIdx, tile) {
+                if (selectedTile) {
+                    const [prevR, prevC] = selectedTile;
+                    if (grid[prevR][prevC] === grid[rIdx][cIdx] && grid[rIdx][cIdx] !== 0) {
+                        grid[rIdx][cIdx] *= 2;
+                        updateScore(grid[rIdx][cIdx]); 
+                        grid[prevR][prevC] = 0;
+                        addRandomTile();
+                        drawGrid();
+                    }
+                    selectedTile = null;
+                    Array.from(document.querySelectorAll('.tile')).forEach(t => t.classList.remove('highlighted'));
+                } else {
+                    selectedTile = [rIdx, cIdx];
+                    tile.classList.add('highlighted');
+                }
+            }
+
+            function moveLeft() {
+                grid = grid.map(row => {
+                    let newRow = row.filter(v => v);
+                    for (let i = 0; i < newRow.length - 1; i++) {
+                        if (newRow[i] === newRow[i + 1]) {
+                            newRow[i] *= 2;
+                            updateScore(newRow[i]);
+                            newRow.splice(i + 1, 1);
+                        }
+                    }
+                    while (newRow.length < 4) newRow.push(0);
+                    return newRow;
+                });
+            }
+
+            function move(direction) {
+                if (direction === "right") {
+                    grid = grid.map(row => row.reverse());
+                    moveLeft();
+                    grid = grid.map(row => row.reverse());
+                } else if (direction === "up") {
+                    grid = grid[0].map((_, i) => grid.map(row => row[i])).reverse();
+                    moveLeft();
+                    grid = grid[0].map((_, i) => grid.map(row => row[i])).reverse().reverse().reverse();
+                } else if (direction === "down") {
+                    grid = grid[0].map((_, i) => grid.map(row => row[i])).reverse().reverse().reverse();
+                    moveLeft();
+                    grid = grid[0].map((_, i) => grid.map(row => row[i])).reverse();
+                } else {
+                    moveLeft();
+                }
+                addRandomTile();
+                drawGrid();
+            }
+
+            document.addEventListener("keydown", (e) => {
+                if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) move(e.key.replace("Arrow", "").toLowerCase());
+            });
+
+            addRandomTile();
+            addRandomTile();
+            drawGrid();
+        });
+    </script>
+</body>
+</html>
